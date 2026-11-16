@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Token Radar — pre-token protocols ranked by implied value</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <h1>Token Radar</h1>
+    <p class="sub">Which pre-token protocol is worth farming next — and what to do about it.</p>
+    <dl class="stats" id="stats"></dl>
+    <p class="model-note" id="model-note"></p>
+  </div>
+</header>
+<main class="wrap">
+  <section class="filters" aria-label="Filters">
+    <label>Search <input id="q" type="search" placeholder="name or slug" autocomplete="off"></label>
+    <label>Chain <select id="chain"><option value="">All chains</option></select></label>
+    <label>Category <select id="cat"><option value="">All categories</option></select></label>
+    <div class="seg" role="group" aria-label="Status">
+      <button type="button" data-status="all" aria-pressed="true">All</button>
+      <button type="button" data-status="pre" aria-pressed="false">Pre-token</button>
+      <button type="button" data-status="live" aria-pressed="false">Trading</button>
+      <button type="button" data-status="wl" aria-pressed="false">Watchlist</button>
+    </div>
+    <label class="grow">Min 7d growth <input id="ming" type="range" min="-50" max="100" step="5" value="-50"> <output id="ming-out">−50%</output></label>
+  </section>
+  <p class="count" id="count" aria-live="polite"></p>
+  <section id="board-view">
+    <table id="board">
+      <thead><tr>
+        <th data-sort="rank" aria-sort="ascending">Rank</th>
+        <th data-sort="name">Protocol</th>
+        <th data-sort="cat">Category</th>
+        <th data-sort="chains">Chains</th>
+        <th data-sort="tvl" class="num">TVL</th>
+        <th data-sort="ch7" class="num">7d</th>
+        <th data-sort="age" class="num">Age</th>
+        <th data-sort="fdv" class="num">Implied FDV</th>
+        <th>Why ranked</th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <p class="empty" id="empty" hidden>No protocol matches these filters. Loosen the growth slider or clear the search.</p>
+  </section>
+  <section id="detail-view" hidden></section>
+  <section class="method" id="method">
+    <h2>How the ranking works</h2>
+    <p id="method-text"></p>
+    <h3>Gas assumptions</h3>
+    <p id="gas-text"></p>
+    <p class="warn">Speculative: no token or airdrop is confirmed for any protocol here. Implied FDV is this radar's own ranking claim, not a price prediction and not investment advice. “No token” means the snapshot records none — a protocol may still have one its record does not carry.</p>
+  </section>
+</main>
+<footer class="wrap"><p>Data: DefiLlama protocol snapshot, frozen <span id="asof"></span>. Model <span id="mver"></span>. No network: this page ships its data with it.</p></footer>
+<script src="data.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
