@@ -333,7 +333,22 @@ export function buildRadar(
   return { board, live, meta, rows: board.map((r) => radarRow(r, wl)), liveRows: live.map(liveRowCompact) };
 }
 
-/** The snapshot out of a file's text, refused unless it is the shape the model scores. */
+/** The leading YYYY-MM-DD of a date or datetime string, or null when it has none. */
+function datePart(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const m = /^(\d{4}-\d{2}-\d{2})/.exec(value);
+  return m === null ? null : m[1]!;
+}
+
+/**
+ * The snapshot out of a file's text, refused unless it is the shape the model scores.
+ * Tolerant where the shape is the house's own transform: a datetime where the file
+ * promises a date reads as its date, a whole-dollar figure that arrives untruncated
+ * is truncated, and a protocol row the house itself drops from the file (no slug,
+ * name or TVL) is dropped here instead of refusing the whole snapshot. Anything
+ * else malformed — no JSON, no date, no floor, no arrays — still refuses: the run
+ * cannot score what it cannot read.
+ */
 export function parseSnapshot(text: string): Snapshot {
   let raw: unknown;
   try {
@@ -343,38 +358,39 @@ export function parseSnapshot(text: string): Snapshot {
   }
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw new SnapshotError('snapshot.json is not a JSON object');
   const o = raw as Record<string, unknown>;
-  if (typeof o.as_of !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(o.as_of)) throw new SnapshotError('snapshot.json has no as_of date');
+  const asOf = datePart(o.as_of);
+  if (asOf === null) throw new SnapshotError('snapshot.json has no as_of date');
   if (typeof o.source !== 'string') throw new SnapshotError('snapshot.json has no source');
-  if (typeof o.floor_usd !== 'number' || !Number.isSafeInteger(o.floor_usd) || o.floor_usd <= 0) {
+  if (typeof o.floor_usd !== 'number' || !Number.isFinite(o.floor_usd) || o.floor_usd <= 0) {
     throw new SnapshotError('snapshot.json has no floor_usd');
   }
+  const floorUsd = Math.trunc(o.floor_usd);
   if (!Array.isArray(o.protocols)) throw new SnapshotError('snapshot.json has no protocols array');
   if (!Array.isArray(o.watchlist) || o.watchlist.some((s) => typeof s !== 'string')) {
     throw new SnapshotError('snapshot.json has no watchlist of slugs');
   }
-  const protocols = o.protocols.map((v, i) => {
-    if (typeof v !== 'object' || v === null || Array.isArray(v)) throw new SnapshotError(`snapshot.json's protocol ${i} is not an object`);
+  const protocols: SnapshotProtocol[] = [];
+  for (const v of o.protocols) {
+    if (typeof v !== 'object' || v === null || Array.isArray(v)) continue;
     const p = v as Record<string, unknown>;
-    if (typeof p.slug !== 'string' || typeof p.name !== 'string' || typeof p.tvl_usd !== 'number' || !Number.isFinite(p.tvl_usd)) {
-      throw new SnapshotError(`snapshot.json's protocol ${i} lacks a slug, a name or a TVL`);
-    }
-    return {
+    if (typeof p.slug !== 'string' || typeof p.name !== 'string' || typeof p.tvl_usd !== 'number' || !Number.isFinite(p.tvl_usd)) continue;
+    protocols.push({
       slug: p.slug,
       name: p.name,
       category: typeof p.category === 'string' ? p.category : null,
       chains: Array.isArray(p.chains) ? p.chains.filter((c): c is string => typeof c === 'string') : [],
-      tvl_usd: p.tvl_usd,
+      tvl_usd: Math.trunc(p.tvl_usd),
       change_7d: typeof p.change_7d === 'number' && Number.isFinite(p.change_7d) ? p.change_7d : null,
-      mcap_usd: typeof p.mcap_usd === 'number' && Number.isFinite(p.mcap_usd) ? p.mcap_usd : null,
-      listed_at: typeof p.listed_at === 'string' ? p.listed_at : null,
+      mcap_usd: typeof p.mcap_usd === 'number' && Number.isFinite(p.mcap_usd) ? Math.trunc(p.mcap_usd) : null,
+      listed_at: datePart(p.listed_at),
       gecko_id: typeof p.gecko_id === 'string' ? p.gecko_id : null,
       symbol: typeof p.symbol === 'string' ? p.symbol : null,
-    };
-  });
+    });
+  }
   return {
-    as_of: o.as_of,
+    as_of: asOf,
     source: o.source,
-    floor_usd: o.floor_usd,
+    floor_usd: floorUsd,
     protocols,
     watchlist: o.watchlist as string[],
   };
